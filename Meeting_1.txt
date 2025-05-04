@@ -1,0 +1,25 @@
+Assignment:
+
+We make a gaussian mixture model to compute the output translational_velocity, angular_velocity after reflecting off of the wall.
+
+Tasks:
+1. The first model will predict the reflection without any interaction between particles
+2. The second model will predict the reflection with a Couette flow present.
+3. The third model will predict the distribution of translational and angular velocities and predict the accommodation coefficients.
+4. Compare GMM and Bayesian model/DNN on ACC predictions.
+
+ 
+As inputs we have the v_t and v_omega from he liao_transfer_function
+
+
+Questions:
+
+- What is the v_mp (most probable velocity)?
+- How do we evaluate the performance of our model? Especially for part 3. where we have to predict the accommodation coefficients.
+- For task 4 do you already have a Bayesian model to compare our predictions against?
+
+
+Steps:
+1. Specify correct paths to the data in the code to be able to run the data preprocessing
+2. Implement simple GMM to perform task 1.
+3. Train GMM.

@@ -1,0 +1,60 @@
+Machine learning molecular mechanics (MLMM) code
+Installation and prerequisites
+----------------------------------------------
+i)Install TensorFlow in anaconda
+
+For instaliing Anaconda check:
+
+https://www.anaconda.com/products/individual
+
+$conda create -n tensorflow_env tensorflow
+$conda activate tensorflow_env #enter this line in bashrc
+--------------------------------------------------------------------------------
+
+---------------------------------------------------------------------------------------
+ii)Install dependencies for MLMM
+$pip install sklearn matplotlib pandas pyprind periodictable seaborn mendeleev
+#You are ready to go
+#############################################################################################
+For implementing the main code "GM_diatomic.py", do not forget to specifiy the correct path to the input data. By Running this code you can read the MD data, and prepare them in a proper format that can be used by the 
+Gaussian Mixture model. To be more specfic, running this code performs Liao transfer function on normal velocity component and normalize the translational and rotational velocity components
+#-------------------------------------------------------------------------------------------------
+########################################################################################################
+Some tips to execute different parts of the assignment:
+1. Explanations about folders and files names:
+--Sw: Indicates the external velocity ratio imposed at the walls in percentage. For more information have a look on Ref[3]. For example, in the case of the H2_IsoThermalWalls_Sw_20 --> Sw = 0.2
+--Files with the omega keyword include the incoming and outgoing rotational velocities. Files with the Vel keyword include the incoming and outgoing translational velocities
+-- A specific pattern is used to name the provided data sets. For example: H2_Vel_MD_Sw_0_B300_Th_500.txt --> includes translational velocties (Vel) for a system with not-moving walls (Sw_0), at the bottom wall with 300 K(B300) , in which the top wall temperature is at 500 K (Th_500) 
+#--------------------------------------------------------------------------------------------------------------------------------------------------
+For Part A the following data sets are needed: Materials_for_ML_assignment\H2_IsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_B300_Th_300.txt  
+Materials_for_ML_assignment\H2_NonIsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_T500_Tb_300.txt  Materials_for_ML_assignment\H2_NonIsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_B300_Th_500.txt
+Since only translational velocity are needed here you can also skip the data normalization
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+For Part B, going to the same folders as mentioned before, you need to add the rotational velocities also to the training data. The results obtained from the GM model
+in this case are also in the normalized unit. Do not forget to convert them back into the original unit before computing the accommodation coefficients.
+#------------------------------------------------------------------------------------------------
+For Part C, you need the data provided in the forders with Sw_20 keyword in their names 
+###############################################################################################################
+
+
+#----------------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------------------------------
+Here are some useful links to become more familiar with Gaussian Mixture (GM) and Bayesian machine learning technique:
+
+https://brilliant.org/wiki/gaussian-mixture-model/
+https://moonbooks.org/Articles/How-to-use-a-Gaussian-mixture-model-GMM-with-sklearn-in-python-/
+https://pythonmachinelearning.pro/clustering-with-gaussian-mixture-models/
+https://www.python-course.eu/expectation_maximization_and_gaussian_mixture_models.php
+https://scikit-learn.org/stable/modules/generated/sklearn.mixture.BayesianGaussianMixture.html#sklearn.mixture.BayesianGaussianMixture
+#------------------------------------------------------------------------------------------------------------
+Here are some articles in which Molecular Dynamics simulations used to extract the collisional data and the GM model are explained:
+
+[1] Prediction of thermal conductance and friction coefficients at a solid-gas interface from statistical learning of collisions
+
+[2] Modeling rarefied gas-solid surface interactions for Couette flow with different wall temperatures using an unsupervised machine learning technique
+
+[3] Development of a scattering model for diatomic gas–solid surface interactions by an unsupervised machine learning approach
+
+[4] Computation of accommodation coefficients and the use of velocity correlation profiles in molecular dynamics simulations
+
+[5] The Influence of Gas–Wall and Gas–Gas Interactions on the Accommodation Coefficients for Rarefied Gases: A Molecular Dynamics Study

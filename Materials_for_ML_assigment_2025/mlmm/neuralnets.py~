@@ -1,0 +1,165 @@
+try:
+    import tensorflow as tf
+    from tensorflow import keras
+    from tensorflow.keras import layers
+except:
+    print ("WARNING: Tensorflow module not found!! Continuing")
+import pandas as pd
+import matplotlib
+from scipy.sparse import coo_matrix
+from sklearn.utils import shuffle
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from .machine import *
+
+#class trainhistory(object):
+#    def __init__(self,*args,**kwargs):
+#        kw = {}
+#        kw.update(kwargs)
+        #self.history = 
+        #self.mean_absolute_error = []
+        #self.val_mean_absolute_error = []
+
+
+class tf_net(object):
+    def __init__(self,*args,**kwargs):
+        kw = {}
+        kw.update(kwargs)
+        self.nodes = kw.get('model',[1])
+        #self.optimizer = kw.get('optimizer',tf.keras.optimizers.RMSprop(0.001))
+        self.optimizer = kw.get('optimizer',tf.keras.optimizers.Adam(lr=0.001))
+        self.epochs = kw.get('epochs',1000)
+        self.shuffle = kw.get('shuffle',True)
+        self.history = {'epoch':[],'mean_absolute_error':[],'val_mean_absolute_error':[]}
+    def build_model(self,*args,**kwargs):
+        kw = {}
+        kw.update(kwargs)
+        self.input_shape = kw.get('input_shape',None)
+        assert self.input_shape is not  None
+        #    print('ERROR: Input shape must be specified for a building a model\n')
+        #    quit()
+        if (len(self.nodes)==0):
+            print("ERROR: No layer found in the model")
+            quit()
+        if (len(self.nodes)==1):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape])
+            ])
+        elif (len(self.nodes)==2):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==3):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==4):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu),
+                layers.Dense(self.nodes[3],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==5):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu),
+                layers.Dense(self.nodes[3],activation=tf.nn.relu),
+                layers.Dense(self.nodes[4],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==6):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu),
+                layers.Dense(self.nodes[3],activation=tf.nn.relu),
+                layers.Dense(self.nodes[4],activation=tf.nn.relu),
+                layers.Dense(self.nodes[5],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==7):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu),
+                layers.Dense(self.nodes[3],activation=tf.nn.relu),
+                layers.Dense(self.nodes[4],activation=tf.nn.relu),
+                layers.Dense(self.nodes[5],activation=tf.nn.relu),
+                layers.Dense(self.nodes[6],activation=tf.nn.relu)
+            ])
+        elif (len(self.nodes)==8):
+            self.model=keras.Sequential([
+                layers.Dense(self.nodes[0],activation=tf.nn.relu, input_shape=[self.input_shape]),
+                layers.Dense(self.nodes[1],activation=tf.nn.relu),
+                layers.Dense(self.nodes[2],activation=tf.nn.relu),
+                layers.Dense(self.nodes[3],activation=tf.nn.relu),
+                layers.Dense(self.nodes[4],activation=tf.nn.relu),
+                layers.Dense(self.nodes[5],activation=tf.nn.relu),
+                layers.Dense(self.nodes[6],activation=tf.nn.relu),
+                layers.Dense(self.nodes[7],activation=tf.nn.relu)
+            ])
+
+        #if self.model_name == 'base':
+        #    self.model = keras.Sequential([
+        #        layers.Dense(10, activation=tf.nn.relu, input_shape=[self.input_shape]),
+        #        layers.Dense(10, activation=tf.nn.relu),
+        #        layers.Dense(1)
+        #    ])
+        else:
+            print('ERROR: Models with more than 8 layers are not implemented yet')
+            quit()
+        self.model.compile(loss='mean_squared_error',
+                           optimizer=self.optimizer,
+                           metrics=['mean_absolute_error','mean_squared_error'])
+        print (self.model.summary())
+    def fit(self,X,y):
+        train_data = copy.deepcopy(X)
+        train_labels = copy.deepcopy(y)
+        #bar = pyprind.ProgBar(epochs, bar_char='#')
+        if self.shuffle == True:
+            X_sparse = coo_matrix(train_data)
+            #self.history=None
+            for i in range(self.epochs):
+                print ("Epoch: %d out of %d"%(i+1,self.epochs))
+                train_data, X_sparse, train_labels = shuffle (train_data, X_sparse, train_labels, random_state=10)
+                history = self.model.fit(
+                    train_data, train_labels, epochs=1,
+                    validation_split=0.2, verbose=1)
+                #if self.history is not None:
+                self.history['epoch'].append(i+1)
+                #print (history.history)
+                #print (history.history['mean_absolute_error'])
+                #print (history.history['val_mean_absolute_error'])
+                self.history['mean_absolute_error'].append(history.history['mean_absolute_error'][0])
+                self.history['val_mean_absolute_error'].append(history.history['val_mean_absolute_error'][0])
+                #else:
+                 #   self.history = history
+        else:
+            history = self.model.fit(
+                train_data, train_labels, epochs=self.epochs,
+                validation_split=0.2, verbose=1)
+            self.history['epoch'] = history.epoch
+            self.history['mean_absolute_error'] = history.history['mean_absolute_error']
+            self.history['val_mean_absolute_error'] = history.history['val_mean_absolute_error']
+    def predict(self,X):
+        test_data = copy.deepcopy(X)
+        return(self.model.predict(test_data))
+    def plot_history(self,fname='learning_curve',etype='MAE'):
+        fcsv = fname[:-3]+'csv'
+        hist = pd.DataFrame(self.history)
+        #hist['epoch'] = self.history.epoch
+        plt.figure()
+        plt.xlabel('Epoch')
+        plt.ylabel(etype)
+        #print(hist['epoch'],hist['mean_absolute_error'])
+        plt.plot(hist['epoch'],hist['mean_absolute_error'],
+                 label='Train Error')
+        plt.plot(hist['epoch'],hist['val_mean_absolute_error'],
+                 label = 'Val Error')
+        plt.legend()
+        plt.savefig(fname)
+        hist.to_csv(fcsv,sep=' ',encoding='utf-8',index=False)
+        
