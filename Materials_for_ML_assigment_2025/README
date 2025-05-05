@@ -13,11 +13,11 @@ $conda activate tensorflow_env #enter this line in bashrc
 
 ---------------------------------------------------------------------------------------
 ii)Install dependencies for MLMM
-$pip install sklearn matplotlib pandas pyprind periodictable seaborn mendeleev
+$pip install scikit-learn matplotlib pandas pyprind periodictable seaborn mendeleev
 #You are ready to go
 #############################################################################################
 For implementing the main code "GM_diatomic.py", do not forget to specifiy the correct path to the input data. By Running this code you can read the MD data, and prepare them in a proper format that can be used by the 
-Gaussian Mixture model. To be more specfic, running this code performs Liao transfer function on normal velocity component and normalize the translational and rotational velocity components
+Gaussian Mixture model. To be more specific, running this code performs Liao transfer function on normal velocity component and normalize the translational and rotational velocity components
 #-------------------------------------------------------------------------------------------------
 ########################################################################################################
 Some tips to execute different parts of the assignment:
