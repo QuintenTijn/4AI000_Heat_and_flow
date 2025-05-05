@@ -17,6 +17,7 @@ Questions:
 - What is the v_mp (most probable velocity)?
 - How do we evaluate the performance of our model? Especially for part 3. where we have to predict the accommodation coefficients.
 - For task 4 do you already have a Bayesian model to compare our predictions against?
+- For assignment A, do we use the data of all the 3 files alltogether, or do we train 3 seperate models for each file? since the parameters are different for each text file I would assume the latter?
 
 
 Steps:
