@@ -19,9 +19,9 @@ import time
 
 er_type = 'MAE'
 
-system_6D = False
-system_10D = True
-system_omega = True
+system_6D = True # Assignment A uses 6D data since we are using only the translational velocity data
+system_10D = False
+system_omega = False # Set to false, since we are not using angular velocity data in this assignment
 wall_temp = 300
 Liao_Transfer_Function = True
 
@@ -41,7 +41,7 @@ y_omega = []
 x_MD = []
 y_MD = []
 
-path_to_data = r'.\Materials_for_ML_assigment_2025\Data_assignment_A'
+path_to_data = r'.\Materials_for_ML_assigment_2025\Data_H2_assignment_A'
 path_save_data='./'+path_to_data
 #path_to_data = 'Shahin/test_data/'
 
