@@ -41,7 +41,7 @@ y_omega = []
 x_MD = []
 y_MD = []
 
-path_to_data = r'C:\Users\20180384\OneDrive - TU Eindhoven\Desktop\PhD\Assignment_ML\Assginment_ML\Materials_for_ML_assignment\H2_IsoThermalWalls_Sw_0'
+path_to_data = r'.\Materials_for_ML_assigment_2025\Data_assignment_A'
 path_save_data='./'+path_to_data
 #path_to_data = 'Shahin/test_data/'
 
