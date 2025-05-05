@@ -41,7 +41,12 @@ y_omega = []
 x_MD = []
 y_MD = []
 
-path_to_data = r'.\Materials_for_ML_assigment_2025\Data_H2_assignment_A'
+# Path to the data files for Task 1
+# Materials_for_ML_assignment\H2_IsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_B300_Th_300.txt  
+# Materials_for_ML_assignment\H2_NonIsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_T500_Tb_300.txt  
+# Materials_for_ML_assignment\H2_NonIsoThermalWalls_Sw_0\H2_Vel_MD_Sw_0_B300_Th_500.txt
+
+path_to_data = 'Data_H2_assignment_A'
 path_save_data='./'+path_to_data
 #path_to_data = 'Shahin/test_data/'
 
