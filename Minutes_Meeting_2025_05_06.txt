@@ -1,0 +1,19 @@
+Minutes 2025-05-06:
+*Present: Silvia, Jesper, Tijn*
+*Minute-taker: Tijn*
+
+General discussion on the project, research options and first steps for the coming week.
+
+Todo:
+- First try using the Argon data and train the GMM, then do it with hydrogen. Because hydrogen is a more difficult molecule because it has a very small mass.
+- For thursday 8 may we will finish the simple GMM with the Argon dataset.
+- Think about what we want the focal point of our research to be. Silvia can supply us with additional data at any point if we need it.
+- Calculate the accomodation coefficient after computing the gaussian by taking the slope of a line fitted to the cloud of points of you Gaussian.
+
+Research options:
+    - We can get data that follows the potential more accurately and compare the performanc of our model trained on the old data and the new data.
+    - We can split our data in different speed intervals and see how the Gaussians differ at each speed interval.
+    - Why do Gaussian mixture models work so good for this? We could look into if there are not other (supervised) methods that work well.
+    - Why does the model in the paper fall apart at high non-equilibrium situations? Is a Gaussian no longer applicable in this regime?
+    - Maybe Basian models work for this problem as well, almost nobody has tried it before so it is something to look into.
+    - Silvia could contact ASML for experimental datasets for us to work with. This seems to us like a cool option.
