@@ -18,7 +18,8 @@ Questions:
 - How do we evaluate the performance of our model? Especially for part 3. where we have to predict the accommodation coefficients.
 - For task 4 do you already have a Bayesian model to compare our predictions against?
 - For assignment A, do we use the data of all the 3 files alltogether, or do we train 3 seperate models for each file? since the parameters are different for each text file I would assume the latter?
-
+- Why are we using Gaussian Mixture Modeling to model the reflection behaviour? wouldn't a regression model be better at figuring out the relation (reflection) between input and output?
+    - Maybe we expect different modes of reflection representing different clusters in the GMM?
 
 Steps:
 1. Specify correct paths to the data in the code to be able to run the data preprocessing
