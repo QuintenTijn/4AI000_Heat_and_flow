@@ -1,0 +1,29 @@
+Minutes_meeting_2025-05-08
+*Present: Silvia, Tijn, Thomas Roza, Joris Schekkerman*
+*Minute taker: Tijn* 
+*Purpose of meeting: Discuss the research each of the two groups will focus on.*
+
+Silvia proposes she hands us and the Mechanical Engineering (ME) group the Gaussian mixture model they developed for the reflection problem.
+
+During the first week we can then use the GMM to explore the data, see how stratifyig the data effects it.
+
+The ME group wants to try and build a Bayesian model that predicts the outgoing velocities for a single particle dependent on its incoming velocity.
+
+Silvia proposes making a classiefier model that classifies a particle based on its incoming parameters to decide in which regime it will reflect and then based on that class we can commpute predicted outgoing parameters.
+We then also have to calculate the alphas (accommodation coefficients) for each of the reflection regimes, it is currently unkown how many regimes there are.
+
+it feels like if we make a Bayesian model and/or a regression model to predict the reflection of a single particle or at least its reflection probabilities Silvia will be very happy.
+
+
+Final decision on the projects:
+- Jesper and Tijn try different models on the data to compute the reflection based on the data. Think Bayesian model, regression model, different Gaussian Mixture model and a classification model to predict reflection regimes.
+- ME group makes a single model and computes the alpha, looks into the physics of why the different reflection modes occur.
+
+Midterm presentation:
+- The time for the midterm presentation is in the course schedule
+- Between 10:00 and 12:00 in Traverse 2.25
+- During the presentation we are expected to present our project plan:
+    - Problem formulation
+    - Literature review
+    - Timeline
+    - Initial option and data exploration
