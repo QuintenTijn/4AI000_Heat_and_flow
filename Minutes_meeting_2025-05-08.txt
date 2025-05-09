@@ -24,4 +24,4 @@ Midterm presentation:
     - Problem formulation
     - Literature review
     - Timeline
-    - Initial option and data exploration
+    - Initial results
