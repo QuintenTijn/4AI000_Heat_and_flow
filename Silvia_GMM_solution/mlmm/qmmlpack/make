@@ -1,0 +1,973 @@
+#!/usr/bin/env python3
+
+# qmmlpack
+# (c) Matthias Rupp, 2006-2017.
+# See LICENSE.txt for license.
+
+"""Build script.
+
+Part of qmmlpack library.
+"""
+
+# TODO
+# * run only tests for changed parts
+#   can be implemented via TestTask class that determines tests from changed dependencies
+# * better reporter for Mathematica tests
+
+import sys, re
+
+# verify required Python version
+min_version_python = (3, 5)
+if sys.version_info < min_version_python:
+    sys.exit("Python %s.%s or later is required." % min_version_python)
+
+# read build module code from end of file ('from build import *')
+exec(compile(open(sys.argv[0]).read().split('token3iEp03Nmk1')[-1], '<string>', 'exec'))
+
+#  ######################
+#  #  Global variables  #
+#  ######################
+
+# qmmlpack versioning
+
+version_major, version_minor, version_patch = re.findall(r"[0-9]+", run(['git', 'describe', '--tags', '--match', 'v*.*.*', 'master']))[:3]
+
+# project directories
+# uses relative paths where possible to keep compilation calls brief and clear
+
+dir_root                 = os.path.abspath(os.path.dirname(sys.argv[0]))  # qmmlpack project base directory
+dir_build                = "build"                                        # build directory for object files, executables and libraries
+
+dir_cpp                  = "cpp"                                          # C++ library subfolder
+dir_cpp_package          = os.path.join(dir_cpp, "qmmlpack")              # C++ library include folder
+dir_cpp_bindings         = os.path.join(dir_cpp, "bindhelp")              # C++ binding helpers
+dir_cpp_tests            = os.path.join(dir_cpp, "tests")                 # C++ library unit tests source code folder
+
+dir_python               = "python"                                       # Python subfolder
+dir_python_package       = os.path.join(dir_python, "qmmlpack")           # Python package directory
+dir_python_bindings      = os.path.join(dir_python, "bindings")           # Python bindings to C++ library
+dir_python_tests         = os.path.join(dir_python, "tests")              # Python unit tests
+
+dir_mathematica          = "mathematica"                                  # Mathematica subfolder
+dir_mathematica_package  = os.path.join(dir_mathematica, "QMMLPack")      # Mathematica package directory
+dir_mathematica_bindings = os.path.join(dir_mathematica, "bindings")      # Mathematica bindings to C++ library
+dir_mathematica_tests    = os.path.join(dir_mathematica, "tests")         # Mathematica unit tests
+
+# project executable and library files
+# the Mac library has ending .so instead of .dylib, and no colon separating name and version, due to a bug in Python
+
+file_cpp_test_exe        = os.path.join(dir_build, "cpptests")  # C++ library unit tests executable
+file_library_basename    = "qmmlpack"
+file_python_library      = os.path.join(dir_build, switch(platform.system(), 'Darwin', 'lib{}py{}.so'    , 'Linux', 'lib{}py{}.so').format(file_library_basename, version_major, version_minor))
+file_mathematica_library = os.path.join(dir_build, switch(platform.system(), 'Darwin', 'lib{}mm.{}.dylib', 'Linux', 'lib{}mm.{}so').format(file_library_basename, version_major, version_minor))
+
+# compiler settings
+
+# compilation:
+# -fvisibility=hidden        exporting only the API greatly reduces size of library. -fvisibility-inlines-hidden is unnecessary if -fvisibility=hidden is used.
+# -fno-common                same global variable declaration in multiple translation units will result in an error. Safer.
+# -flto, -fwhole-program     Link-time optimization via additional bytecode versus whole program optimization. Mutually exclusive.
+#                            whole-program assumes current compilation unit is the whole program. LLVM/clang does not know -fwhole-program.
+# -Wno-missing-braces        workaround for a bug in LLVM/clang causing wrong warnings for initializers.
+
+# linking:
+# -undefined dynamic_lookup  This way there is no need to explicitly include the Python library. May cause spurious linker warning (object file built for newer OS X than being linked) on older systems.
+
+# supported compiler versions
+min_version_llvm    = ( 3,4)
+min_version_allvm   = ( 7,3)  # Apple LLVM
+min_version_gnu     = ( 4,9)
+min_version_iic     = (17,0)  # v15.0 has a bug (exception.what() has wrong noexcept qualifier)
+min_version_iic_gnu = min_version_gnu
+
+cpp_compiler = 'c++'  # executable name
+cpp_flags_source = [  # C++ flags for source code compilation
+    '-iquote', dir_cpp,
+    '-DVERSION_MAJOR={}'.format(version_major), '-DVERSION_MINOR={}'.format(version_minor), '-DVERSION_PATCH={}'.format(version_patch),
+    '-D{}'.format(platform.system().upper()),  # LINUX, DARWIN
+    '-std=c++14', '-ftemplate-depth=512', '-O3', '-flto', '-fPIC', '-m64', '-fno-strict-aliasing', '-fno-common', '-fvisibility=hidden',
+    '-Wall', '-Wno-missing-braces', '-Wfatal-errors']
+cpp_flags_executable = []  # C++ flags for executable (unit tests)
+cpp_post_executable  = []  # C++ options to be passed last when building executables
+cpp_flags_library    = []  # C++ flags for libraries (Mathematica and Python bindings)
+cpp_post_library     = []  # C++ options to be passed last when building libraries
+
+blaslapack_type = None  # automatic detection; None, 'accelerate', 'mkl', 'gsl'
+
+# hard platform-specific modifications
+
+if platform.system() == 'Darwin':
+    cpp_flags_library.extend(['-dynamiclib', '-current_version', '{}.{}'.format(version_major, version_minor), '-headerpad_max_install_names', '-undefined', 'dynamic_lookup'])
+elif platform.system() == 'Linux':
+    cpp_flags_library.extend(['-shared'])  # -Wl
+
+# command line options will set following variables
+
+# verbose  # True if verbose output requested
+# debug    # True if debugging output requested; if debug is True, verbose is True as well
+# target   # cpp, python, mathematica, all, install, clean, purge
+
+# user_cpp_compiler    # executable name of C++ compiler specified by user; None if not specified
+# user_blaslapack_type # BLAS/LAPACK library specified by user; accelerate, mkl, gsl, or None if not specified
+# user_include_dir     # list of include directories specified by user; [] if not specified
+# user_library_dir     # list of library directories specified by user; [] if not specified
+
+
+#  ################################  #
+#  #  Parse command line options  #  #
+#  ################################  #
+
+# parse command line arguments
+help_prolog = """Build script for qmmlpack."""
+help_epilog = """path options can be specified multiple times.
+
+targets:
+  cpp           - compile C++ unit tests and run them
+  python        - compile Python bindings and run unit tests
+  mathematica   - compile Mathematica bindings and run unit tests
+  install       - deploy compiled libraries to system
+  clean         - remove all intermediate files
+  purge         - remove all intermediate and generated files
+
+supported C++ compilers:
+  GNU Compiler Collection, version {}.{} or later
+  LLVM/Clang compiler, version {}.{} or later
+  Apple LLVM/Clang compiler, version {}.{} or later
+  Intel C++ compiler, version {}.{} or later
+
+supported BLAS/LAPACK libraries:
+  mkl         - Intel Math Kernel Library
+  accelerate  - Apple Accelerate framework
+  gsl         - GNU Scientific Library
+
+Part of qmmlpack library.""".format(
+    min_version_gnu[0], min_version_gnu[1],
+    min_version_llvm[0], min_version_llvm[1],
+    min_version_allvm[0], min_version_allvm[1],
+    min_version_iic[0], min_version_iic[1])
+parse = argparse.ArgumentParser(description=help_prolog, epilog=help_epilog, formatter_class=argparse.RawDescriptionHelpFormatter) # lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=x, width=y)
+parse.add_argument('-v', '--verbose', action='store_true', help='prints additional information during build')
+parse.add_argument('--debug', action='store_true', help='prints most detailed information during build')
+parse.add_argument('--cpp-compiler', metavar='c++', dest='user_cpp_compiler', help='C++ compiler to use (executable name)')
+parse.add_argument('--blas-lapack', metavar='lib', dest='user_blaslapack_type', help='BLAS/LAPACK library to use (see below)')
+parse.add_argument('--include-path', metavar='path', dest='user_include_dir', action='append', default=[], help='directory with header files')
+parse.add_argument('--library-path', metavar='path', dest='user_library_dir', action='append', default=[], help='directory with libraries')
+parse.add_argument('target', help='build target')
+if len(sys.argv) == 1: parse.print_help(); sys.exit(0)
+args = parse.parse_args()
+
+verbose, debug, target = args.verbose, args.debug, args.target
+user_cpp_compiler, user_blaslapack_type, user_include_dir, user_library_dir = args.user_cpp_compiler, args.user_blaslapack_type, args.user_include_dir, args.user_library_dir
+
+# check command line arguments
+if target == 'help': parse.print_help(); sys.exit(0)
+if target not in ('cpp', 'python', 'mathematica', 'all', 'install', 'clean', 'purge'): error("Unknown target '{}'.".format(target))
+if debug: verbose = True
+if user_cpp_compiler is not None:
+    assert os.path.isfile(run(['which', user_cpp_compiler], errormsg="Unable to find user-specified C++ compiler '{}'.".format(user_cpp_compiler)).strip())
+if user_blaslapack_type not in (None, 'accelerate', 'mkl', 'gsl'): error("Unknown BLAS/LAPACK library '{}'.".format(user_blaslapack_type))
+if user_include_dir != [] and not all([os.path.isdir(d) for d in user_include_dir]):
+    for d in user_include_dir:
+        if not os.path.isdir(d): error("Can not find include path '{}'.".format(d))
+if user_library_dir != [] and not all([os.path.isdir(d) for d in user_library_dir]):
+    for d in user_library_dir:
+        if not os.path.isdir(d): error("Can not find library path '{}'.".format(d))
+
+del help_prolog, help_epilog, args
+
+#  ###########
+#  #  Setup  #
+#  ###########
+
+def setup_include_directory(filename, user_dirs, description, targetvar, sources=[], append=True, prepend=False, infolevel=0):
+    """Finds include directories.
+
+    Finds directory containing target file.
+    Scans user-supplied directories, then supplied possible directories.
+
+    Factored-out code for finding header or library include directories."""
+
+    # scan user-supplied directories
+    if any([find_files(d, filename, recursive=True) != [] for d in user_dirs]):
+        info("Using user-specified {} directory.".format(description), infolevel)
+        return
+
+    # iterate over supplied sources
+    found = False
+
+    for source in sources:
+
+        # environment variable
+        if source[0] == 'env':
+            envvar = os.environ.get(source[1])
+            if envvar is not None:
+                envdir = envvar + (os.sep + source[2] if source[2] != '' else '')
+                if os.path.isdir(envdir) and find_files(envdir, filename) != []:
+                    directory, found = envdir, True
+                    info("Using {} directory at '{}', found via ${}.".format(description, directory, source[1]), infolevel)
+
+        # executable path
+        elif source[0] == 'which':
+            try:
+                whichdir = os.path.split(run(['which', source[1]], errormsg="Unable to find {} executable '{}'.".format(source[2], source[1])))[0]  # path to executable
+                if len(source) < 5 or source[4] is None:  # only search this one directory
+                    whichdir = [whichdir]
+                elif isinstance(source[4], int):  # go up a number of directories
+                    whichdir = whichdir.split(os.sep)
+                    whichdir = [os.sep.join(whichdir[:len(whichdir)-i]) for i in range(source[4]+1)] # directories up to source[4] parents, most specific first
+                elif isinstance(source[4], str):  # go up until given directory
+                    whichdir = whichdir.split(os.sep)
+                    pos = whichdir.index(source[4])
+                    whichdir = reversed([os.sep.join(whichdir[:pos+i]) for i in range(1,len(whichdir)-pos+1)])
+
+                for d in whichdir:
+                    dd = d + (os.sep + source[3] if source[3] != '' else '')
+                    recursive = False if len(source) < 6 or not source[5] else True
+                    if os.path.isdir(dd) and find_files(dd, filename, recursive=recursive) != []:
+                        if recursive: dd = os.path.split(find_files(dd, filename, recursive=True, pathtype='absolute')[0])[0]
+                        directory, found = dd, True
+                        info("Using {} directory at '{}', found via {} path.".format(description, dd, source[2]), infolevel)
+                        break # Use first one
+            except ValueError:
+                dinfo("Did not find {} directory via {} path.".format(description, source[2]), infolevel)
+
+        if found: break
+
+    if not found: error("Unable to find {} directory, please specify explicitly via command line.".format(description))
+
+    if prepend: targetvar[:0] = [directory]
+    if append: targetvar[len(targetvar):] = [directory]
+
+def build_setup():
+    """Sets up C++ compiler and BLAS/LAPACK library.
+
+    Includes automatic detection where possible."""
+    global user_cpp_compiler, user_blaslapack_type, user_include_dir, user_library_dir
+    global cpp_compiler, cpp_compiler_type, cpp_compiler_version, blaslapack_type
+    global cpp_flags_source, cpp_flags_executable, cpp_post_executable, cpp_flags_library, cpp_post_library
+
+    include_dir, library_dir = [], []
+
+    # C++ compiler
+    if user_cpp_compiler is not None: cpp_compiler = user_cpp_compiler
+    s = run([cpp_compiler, '-v'], output='stderr', force=True)  # icc returns error code 1
+    cpp_compiler_type = which('icc' in s, 'Intel', 'gcc' in s, 'GNU', 'LLVM' in s and platform.system() == 'Darwin', 'Apple LLVM', 'LLVM' in s, 'LLVM', True, 'Unknown') # icc before gnu as it prints out gcc compatibility info
+    cpp_compiler_version = re.compile(r'version[ \t]+([0-9]+)\.([0-9]+)').search(s).group(1,2)
+    cpp_compiler_version = tuple(int(v) for v in cpp_compiler_version) # convert to integer
+    info("C++ compiler is {}, version {}.{}.".format(switch(cpp_compiler_type, 'GNU', 'GNU compiler collection', 'Apple LLVM', 'Apple LLVM/Clang', 'LLVM', 'LLVM/Clang', 'Intel', 'Intel', 'Unknown', 'Unknown'), cpp_compiler_version[0], cpp_compiler_version[1]), 0)
+
+    # ensure minimal required compiler version
+    if cpp_compiler_type == 'GNU' and cpp_compiler_version < min_version_gnu: error("GNU C++ compiler must be at least version {}.{}.".format(min_version_gnu[0], min_version_gnu[1]))
+    if cpp_compiler_type == 'Apple LLVM' and cpp_compiler_version < min_version_allvm: error("Apple LLVM C++ compiler must be at least version {}.{}".format(min_version_allvm[0], min_version_allvm[1]))
+    if cpp_compiler_type == 'LLVM' and cpp_compiler_version < min_version_llvm: error("LLVM C++ compiler must be at least version {}.{}".format(min_version_llvm[0], min_version_llvm[1]))
+    if cpp_compiler_type == 'Intel':
+        if cpp_compiler_version < min_version_iic: error("Intel C++ compiler must be at least version {}.{}.".format(min_version_iic[0], min_version_iic[1]))
+        icc_gcc_version = re.search(r'gcc version[ \t]+([0-9]+)\.([0-9]+)', s).group(1,2)
+        icc_gcc_version = tuple(int(v) for v in icc_gcc_version) # convert to integer
+        info("GCC libraries are version {}.{}.".format(icc_gcc_version[0], icc_gcc_version[1]), 0)
+        if icc_gcc_version < min_version_iic_gnu: error("GCC C++ libraries must be at least version {}.{}.".format(min_version_iic_gnu[0], min_version_iic_gnu[1]))
+
+    # BLAS/LAPACK library
+    if user_blaslapack_type is None:  # automatic detection
+        if platform.system() == 'Darwin': blaslapack_type = 'accelerate'
+        elif cpp_compiler_type == 'Intel':  blaslapack_type = 'mkl'
+        elif cpp_compiler_type == 'GNU': blaslapack_type = 'gsl'
+        else: error("Could not determine BLAS/LAPACK library.")
+    else:
+        blaslapack_type = switch(user_blaslapack_type, 'accelerate', 'accelerate', 'mkl', 'mkl', 'gsl', 'gsl', 'unknown')
+    info("BLAS/LAPACK library is {}.".format(switch(blaslapack_type, 'accelerate', 'Apple Accelerate framework', 'mkl', 'Intel Math Kernel Library', 'gsl', 'GNU Scientific Library', 'unknown')), 0)
+
+    # adaptations due to BLAS/LAPACK
+    cpp_flags_source += ['-DBLASLAPACK={}'.format(switch(blaslapack_type, 'accelerate', 1, 'mkl', 2, 'gsl', 3, 0))]
+    if blaslapack_type == "accelerate":
+        cpp_flags_executable = ['-framework', 'Accelerate'] + cpp_flags_executable
+        cpp_flags_library += ['-framework', 'Accelerate', '-dynamiclib', '-current_version', '{}.{}'.format(version_major, version_minor), '-headerpad_max_install_names', '-undefined', 'dynamic_lookup']
+    elif blaslapack_type == 'mkl':
+        setup_include_directory('mkl.h', user_include_dir, 'MKL include', include_dir, [('env', 'MKLROOT', 'include'), ('which', cpp_compiler, 'Intel compiler', 'mkl'+os.sep+'include', 'intel')])
+        setup_include_directory('libmkl_rt.so', user_library_dir, 'MKL library', library_dir, [('env', 'MKLROOT', 'lib'+os.sep+'intel64'), ('which', cpp_compiler, 'Intel compiler', os.sep.join(['mkl', 'lib', 'intel64']), 'intel')])
+        cpp_post_executable += ['-lmkl_rt', '-lpthread', '-ldl']
+        cpp_post_library += ['-lmkl_rt', '-lpthread', '-ldl']
+    elif blaslapack_type == 'gsl':
+        setup_include_directory('gsl_cblas.h', user_include_dir, 'GSL include', include_dir, sources=[('env', 'GSL_HOME', 'include'+os.sep+'gsl')])
+        setup_include_directory('libgslcblas.so', user_library_dir, 'GSL library', library_dir, sources=[('env', 'GSL_HOME', 'lib')])
+        cpp_post_executable += ['-lgslcblas']
+        cpp_post_library += ['-lgslcblas']
+
+    # include directories
+    include_dir += user_include_dir
+    library_dir += user_library_dir
+    cpp_flags_source = flatten([['-I', d] for d in include_dir]) + cpp_flags_source
+    cpp_flags_executable = flatten([['-L', d] for d in library_dir]) + cpp_flags_executable
+    cpp_flags_library = flatten([['-L', d] for d in library_dir]) + cpp_flags_library
+
+
+#  #################
+#  #  C++ library  #
+#  #################
+
+def build_cpp():
+    """Builds and runs C++ unit tests."""
+
+    info("Building C++ unit tests.", 0)
+
+    # locate all C++ source files
+    sources_package = find_files(dir_cpp_package, "*.cpp", pathtype='relative')
+    info("Found {} C++ package source files.".format(len(sources_package)), 1)
+
+    sources_tests = find_files(dir_cpp_tests, "*.cpp", pathtype='relative')
+    info("Found {} C++ unit test source files.".format(len(sources_tests)), 1)
+
+    sources = sources_package + sources_tests
+    dinfo("Source files: {}".format([os.path.relpath(s, dir_root) for s in sources]), 1)
+
+    # build test executable
+    deps = [CppSourceTask(s, dirs=[dir_cpp, dir_cpp_tests], cpp=cpp_compiler, flags=cpp_flags_source, infolevel=1) for s in sources]
+    ExecutableTask(file_cpp_test_exe, deps=deps, cpp=cpp_compiler, flags=cpp_flags_executable, post=cpp_post_executable, infolevel=1).build()
+
+    info("Running C++ unit tests.", 0)
+
+    res = run([file_cpp_test_exe, '--reporter', 'compact', '-w', 'NoAssertions'])
+    info(res.strip().splitlines(), 1)
+
+#  ####################
+#  #  Python package  #
+#  ####################
+
+def build_python():
+    """Builds Python bindings and runs unit tests."""
+    global cpp_flags_source
+
+    info("Building python library bindings.", 0)
+
+    # add Python bindings to include directory
+    cpp_flags_source = ['-iquote', dir_python] + cpp_flags_source
+
+    # locate all C++ source files
+    sources_package = find_files(dir_cpp_package, "*.cpp", pathtype='relative')
+    info("Found {} C++ package source files.".format(len(sources_package)), 1)
+
+    sources_bindings = find_files(dir_python_bindings, "*.cpp", pathtype='relative')
+    info("Found {} Python bindings source files.".format(len(sources_bindings)), 1)
+
+    # auto-detect Python include directory if necessary
+    dir_system_python = os.path.split(run(['which', 'python3'], errormsg="Unable to find python3 executable."))[0]
+    info("Using Python at {}".format(dir_system_python), 1)
+
+    dir_python_include = []
+    print (os.sep.join([dir_system_python,'..','include']))
+    if os.path.isdir(os.sep.join([dir_system_python, '..', 'include'])):
+        setup_include_directory('Python.h', user_include_dir, 'Python include', dir_python_include, [('which', 'python3', 'Python compiler', 'include', 1, True)], infolevel=1)
+    else:
+        error("Unable to find Python include directory, please specify explicitly via command line.")
+    print (dir_python_include)
+    assert len(dir_python_include) == 1
+    cpp_flags_source = ['-I', dir_python_include[0]] + cpp_flags_source
+
+    sources = sources_package + sources_bindings
+    dinfo("Source files: {}".format([os.path.relpath(s, dir_root) for s in sources]), 1)
+
+    # build library
+    deps = [CppSourceTask(filename=s, dirs=[dir_cpp, dir_python, dir_python_bindings], cpp=cpp_compiler, flags=cpp_flags_source, infolevel=1) for s in sources]
+    LibraryTask(file_python_library, deps=deps, cpp=cpp_compiler, flags=cpp_flags_library, post=cpp_post_library, infolevel=1).build()
+
+    # copy library to python package directory
+    info("Copying library to Python package directory", 1)
+    if file_in_use(os.path.join(dir_python_package, os.path.basename(file_python_library))):
+        error("Python qmmlpack library is in use by another program.")
+    run(['cp', file_python_library, dir_python_package])
+
+    info("Running Python unit tests.", 0)
+
+    res = run(['/bin/sh', '-c', 'export PYTHONPATH="{}"; py.test {} --strict "{}"'.format(dir_python, '' if debug else '-q', dir_python_tests)])
+    dinfo(res.strip().splitlines(), 1)
+    if not debug: info(res.strip().splitlines()[1:], 1)
+
+#  #########################
+#  #  Mathematica package  #
+#  #########################
+
+def build_mathematica():
+    """Builds Mathematica bindings and runs unit tests."""
+    global cpp_flags_source
+
+    info("Building Mathematica library bindings.", 0)
+
+    # add Mathematica bindings to include directory
+    cpp_flags_source = ['-iquote', dir_mathematica] + cpp_flags_source
+
+    # locate all C++ source files
+    sources_package = find_files(dir_cpp_package, "*.cpp", pathtype='relative')
+    info("Found {} C++ package source files.".format(len(sources_package)), 1)
+
+    sources_bindings = find_files(dir_mathematica_bindings, "*.cpp", pathtype='relative')
+    info("Found {} Mathematica bindings source files.".format(len(sources_bindings)), 1)
+
+    sources = sources_package + sources_bindings
+    dinfo("Source files: {}".format([os.path.relpath(s, dir_root) for s in sources]), 1)
+
+    # locate Mathematica system directory
+    dir_system_mathematica = os.path.split(run(['which', 'Mathematica']))[0]+'/..'  # this likely needs a different call for Linux
+    if not os.path.isdir(dir_system_mathematica): error("Could not locate Mathematica system directory.")
+    os_mathematica = switch(platform.system(), 'Darwin', 'MacOSX-x86-64', 'Linux', 'Linux-x86-64')
+
+    # build library
+    flags = [
+        '-I{}/SystemFiles/IncludeFiles/C/'.format(dir_system_mathematica),
+        '-I{}/SystemFiles/Links/MathLink/DeveloperKit/{}/CompilerAdditions/'.format(dir_system_mathematica, os_mathematica),
+        '-I{}/SystemFiles/Links/WSTP/DeveloperKit/{}/CompilerAdditions/'.format(dir_system_mathematica, os_mathematica)]
+    flags += cpp_flags_source
+    deps = [CppSourceTask(filename=s, dirs=[dir_cpp, dir_mathematica, dir_mathematica_bindings], cpp=cpp_compiler, flags=flags) for s in sources]
+
+    flags = ['-L{}/SystemFiles/Links/WSTP/DeveloperKit/{}/CompilerAdditions'.format(dir_system_mathematica, os_mathematica), '-lWSTPi4']
+    LibraryTask(file_mathematica_library, deps=deps, cpp=cpp_compiler, flags=cpp_flags_library + flags, post=cpp_post_library, infolevel=1).build()
+
+    # copy library to Mathematica package directory
+    info("Copying library to Mathematica package directory", 1)
+    dir_mathematica_package_install = '{}/LibraryResources/{}'.format(dir_mathematica_package, os_mathematica)
+    if file_in_use(os.path.join(dir_mathematica_package_install, os.path.basename(file_mathematica_library))):
+        error("Mathematica qmmlpack library is in use by another program.")
+    run(['cp', file_mathematica_library, dir_mathematica_package_install])
+
+    # run unit tests
+    info("Running Mathematica unit tests.", 0)
+    res = run(['/bin/sh', '-c', 'cd "{}"; wolframscript -file RunTests.m'.format(dir_mathematica_tests)],
+        errormsg='Some Mathematica tests failed. Please run above command line for details.')
+    info(res.strip().splitlines(), 1)
+
+#  #############
+#  #  Install  #
+#  #############
+
+def build_install():
+    info("Installing compiled libraries.", 0)
+
+    # Create library directory if necessary
+    info("Creating system library directory if necessary.", 1)
+    system_library_dir = '/usr/local/qmmlpack'
+    try:
+        os.makedirs(system_library_dir, exist_ok=True)
+    except PermissionError:
+        error("Insufficient write permissions. Please run as root.")
+
+    # Mathematica
+    os_mathematica = switch(platform.system(), 'Darwin', 'MacOSX-x86-64', 'Linux', 'Linux-x86-64')
+    mathematica_library_file = '{}/LibraryResources/{}/{}'.format(dir_mathematica_package, os_mathematica, os.path.basename(file_mathematica_library))
+    if(os.path.exists(mathematica_library_file)):
+        info("Installing Mathematica library.", 1)
+        os.makedirs(os.path.join(system_library_dir, 'mathematica'), exist_ok=True)
+        run(['cp', '-R', dir_mathematica_package, os.path.join(system_library_dir, 'mathematica')])
+    else:
+        info("Skipping Mathematica library.", 1)
+
+    # Python
+    python_library_file = '{}/{}'.format(dir_python_package, os.path.basename(file_python_library))
+    if(os.path.exists(python_library_file)):
+        info("Installing Python library.", 1)
+        os.makedirs(os.path.join(system_library_dir, 'python'), exist_ok=True)
+        run(['cp', '-R', dir_python_package, os.path.join(system_library_dir, 'python')])
+    else:
+        info("Skipping Python library.", 1)
+
+
+#  #####################
+#  #  Clean and purge  #
+#  #####################
+
+#  clean
+
+def build_clean():
+    info("Deleting intermediate files.", 0)
+
+    # build directory
+    files = find_files(dir_build, '*', pathtype='relative')
+    files.remove(os.path.join(dir_build, '.gitignore'))
+    for f in files: os.remove(f)
+    info("Deleted {} intermediate build files.".format(len(files)) if len(files) > 0 else "No intermediate build files found.", 1)
+
+    # Python __cache__directories
+    dirs = find_files(dir_root, '__pycache__', recursive=True, pathtype='relative', directories=True)
+    for d in dirs: shutil.rmtree(d)
+    info("Deleted {} Python cache directories.".format(len(dirs)) if len(dirs) > 0 else "No Python cache directories found.", 1)
+
+    # py.test .cache (before 3.4.0) and .pytest_cache (from 3.4.0 on)
+    dirs1 = find_files(dir_root, '.cache', recursive=True, pathtype='relative', directories=True)
+    dirs2 = find_files(dir_root, '.pytest_cache', recursive=True, pathtype='relative', directories=True)
+    dirs = list(dirs1) + list(dirs2)  # be extra careful because files are deleted
+    for d in dirs:
+        shutil.rmtree(d)
+    info("Deleted {} py.test cache directories.".format(len(dirs)) if len(dirs) > 0 else "No py.test cache directories found.", 1)
+
+#  purge
+
+def build_purge():
+    build_clean()
+
+    info("Deleting all remaining generated files.", 0)
+
+    files_python      = find_files(dir_python_package, '*{}*'.format(file_library_basename), pathtype='relative')
+    files_mathematica = find_files(os.path.join(dir_mathematica_package, 'LibraryResources'), '*{}*'.format(file_library_basename), recursive=True, pathtype='relative')
+    files = files_python + files_mathematica
+    for f in files: os.remove(f)
+    info("Deleted {} remaining generated files.".format(len(files)) if len(files) > 0 else "No remaining generated files found.", 1)
+
+
+#  ##################
+#  #  Build target  #
+#  ##################
+
+if(platform.system() not in ('Darwin', 'Linux')): error("Unsupported operating system '{}'.".format(platform.system()))
+
+os.chdir(dir_root)  # make project root the current directory; commands like run() work relative to current working directory
+Task.builddir = dir_build  # directory where object files, executables, and libraries are built
+Task.projdir = dir_root  # project root directory
+def uniquify(arg):
+    """Uniquifies by prepending directories first letter."""
+    arg = os.path.relpath(arg, dir_root).split(os.sep)  # path components including filename
+    return ''.join([s[0] for s in arg[:-1]]).lower() + '_' + arg[-1]
+Task.uniquify = uniquify
+
+# build requested target
+if   target == 'all'        : build_clean(); build_setup(); build_cpp(); build_python(); build_mathematica()
+elif target == 'cpp'        : build_setup(); build_cpp()
+elif target == 'python'     : build_setup(); build_python()
+elif target == 'mathematica': build_setup(); build_mathematica()
+elif target == 'install'    : build_install()
+elif target == 'clean'      : build_clean()
+elif target == 'purge'      : build_purge()
+else: error("Unknown target '{}'.".format(target))
+
+info("Done.", 0)
+
+sys.exit(0)
+
+
+#  #####################################################################################################################  #
+
+#  #######################
+#  #  Build module code  #
+#  #######################
+
+#  Moved to end of file so settings can be first
+
+#  Unique token marking beginning of module code
+#  token3iEp03Nmk1
+
+import os, sys, fnmatch, re, time, datetime, platform, argparse, itertools, subprocess, tempfile, shutil
+
+#  #######################
+#  #  Utility functions  #
+#  #######################
+
+def error(msg):
+    """Prints error message and aborts."""
+    print("Error:", msg)
+    dinfo("State:", 0)
+    dinfo("", 0)
+    dinfo("version_major            = {}".format(version_major), 0)
+    dinfo("version_minor            = {}".format(version_minor), 0)
+    dinfo("version_patch            = {}".format(version_patch), 0)
+    dinfo("", 0)
+    dinfo("dir_root                 = {}".format(dir_root), 0)
+    dinfo("dir_build                = {}".format(dir_build), 0)
+    dinfo("", 0)
+    dinfo("dir_cpp                  = {}".format(dir_cpp), 0)
+    dinfo("dir_cpp_package          = {}".format(dir_cpp_package), 0)
+    dinfo("dir_cpp_bindings         = {}".format(dir_cpp_bindings), 0)
+    dinfo("dir_cpp_tests            = {}".format(dir_cpp_tests), 0)
+    dinfo("", 0)
+    dinfo("dir_python               = {}".format(dir_python), 0)
+    dinfo("dir_python_package       = {}".format(dir_python_package), 0)
+    dinfo("dir_python_bindings      = {}".format(dir_python_bindings), 0)
+    dinfo("dir_python_tests         = {}".format(dir_python_tests), 0)
+    dinfo("", 0)
+    dinfo("dir_mathematica          = {}".format(dir_mathematica), 0)
+    dinfo("dir_mathematica_package  = {}".format(dir_mathematica_package), 0)
+    dinfo("dir_mathematica_bindings = {}".format(dir_mathematica_bindings), 0)
+    dinfo("dir_mathematica_tests    = {}".format(dir_mathematica_tests), 0)
+    dinfo("", 0)
+    dinfo("file_cpp_test_exe        = {}".format(file_cpp_test_exe), 0)
+    dinfo("file_library_basename    = {}".format(file_library_basename), 0)
+    dinfo("file_python_library      = {}".format(file_python_library), 0)
+    dinfo("file_mathematica_library = {}".format(file_mathematica_library), 0)
+    dinfo("", 0)
+    dinfo("min_version_llvm         = {}".format(min_version_llvm), 0)
+    dinfo("min_version_allvm        = {}".format(min_version_allvm), 0)
+    dinfo("min_version_gnu          = {}".format(min_version_gnu), 0)
+    dinfo("min_version_iic          = {}".format(min_version_iic), 0)
+    dinfo("min_version_iic_gnu      = {}".format(min_version_iic_gnu), 0)
+    dinfo("", 0)
+    dinfo("cpp_compiler             = {}".format(cpp_compiler), 0)
+    dinfo("cpp_flags_source         = {}".format(cpp_flags_source), 0)
+    dinfo("cpp_flags_executable     = {}".format(cpp_flags_executable), 0)
+    dinfo("cpp_post_executable      = {}".format(cpp_post_executable), 0)
+    dinfo("cpp_flags_library        = {}".format(cpp_flags_library), 0)
+    dinfo("cpp_post_library         = {}".format(cpp_post_library), 0)
+    dinfo("", 0)
+    dinfo("blaslapack_type          = {}".format(blaslapack_type), 0)
+    dinfo("verbose                  = {}".format(verbose), 0)
+    dinfo("debug                    = {}".format(debug), 0)
+    dinfo("target                   = {}".format(target), 0)
+    dinfo("", 0)
+    dinfo("user_cpp_compiler        = {}".format(user_cpp_compiler), 0)
+    dinfo("user_blaslapack_type     = {}".format(user_blaslapack_type), 0)
+    dinfo("user_include_dir         = {}".format(user_include_dir), 0)
+    dinfo("user_library_dir         = {}".format(user_library_dir), 0)
+    dinfo("", 0)
+    sys.exit(1)
+
+def info(msg, indent):
+    """Prints informative message if in verbose mode.
+
+    In debug mode, non-debug messages are prefixed with dots to more easily dinstinguish them from the longer debug messages."""
+    if is_sequence(msg):
+        for line in msg: info(line, indent)
+    else:
+        if verbose: print(('..' if debug else '  ')*indent+msg)
+
+def dinfo(msg, indent):
+    """Prints debugging message if in debug mode.
+
+    Uses same indentation as info() for readability."""
+    if is_sequence(msg):
+        for line in msg: dinfo(line, indent)
+    else:
+        if 'debug' in globals() and debug: print('  '*indent+msg)
+
+def is_sequence(arg):
+    """True if arg is a list, tuple, array or similar object, but not a string."""
+    return ( hasattr(arg, "__getitem__") or hasattr(arg, "__iter__") ) and not isinstance(arg, str)
+
+def flatten(arg):
+    """Recursively flattens a sequence.
+
+    >>> flatten([(1,2),[[[3],(4,)],5],'6']) == [1,2,3,4,5,'6']"""
+    # the case that arg is not a sequence is the recursion anchor. flatten() should only be called with lists, tuples, etc.
+    assert is_sequence(arg)
+    return [item for sublist in [flatten(a) if is_sequence(a) else [a] for a in arg] for item in sublist] if is_sequence(arg) else arg
+
+def switch(key, *args):
+    """Switch/case for Python.
+
+    >>> switch(var, value1, result1, value2, result2, ...[, default])"""
+    for i in range(0, len(args), 2):
+        if key == args[i]: return args[i+1]
+    if len(args) % 2 == 1: return args[-1]  # Default value
+    error("switch command fell through without default statement.")
+
+def which(*args):
+    """Which for Python.
+
+    >>>which(cond1, value1, cond2, value2, ...)
+    >>>which(cond1, value1, ..., True, default)"""
+    assert len(args) % 2 == 0, "Invalid number of arguments to which()."
+    for i in range(0, len(args), 2):
+        if args[i]: return args[i+1]
+    error("which command fell through.")
+
+def find_files(dir, pattern, pathtype='none', recursive=False, directories=False):
+    """Finds all files matching pattern in directory and optionally subdirectories.
+
+    pathtype must be one of 'none', (only filenames) 'relative to project directory', or 'absolute' (complete path from root)
+    If directories=True, finds directories instead of files.
+
+    >>> find_files(os.getcwd(), '*')
+    >>> find_files('/some/path', '*.cpp', recursive=True)"""
+    if not recursive:
+        filenames = fnmatch.filter(os.listdir(dir), pattern)
+    else:
+        filenames = []
+        for dp, dn, fn in os.walk(dir):  # dirpath, dirnames, filenames
+            filenames.extend([os.path.join(dp, f) for f in (dn if directories else fn) if fnmatch.fnmatch(f, pattern)])
+        filenames = [os.path.relpath(fn, dir) for fn in filenames]
+    if pathtype == 'relative':
+        filenames = [os.path.relpath(os.path.join(dir, fn), start=dir_root) for fn in filenames]
+    elif pathtype == 'absolute':
+        filenames = [os.path.abspath(os.path.join(dir, fn)) for fn in filenames]
+    elif pathtype == 'none':
+        pass
+    return filenames
+
+def find_path(filename, dirs):
+    """Path to file if any of the directories contains it, otherwise None.
+
+    It is an error if the filename is not unique within the directories."""
+    assert is_sequence(dirs)
+    matches = [os.path.join(d, filename) for d in dirs if os.path.isfile(os.path.join(d, filename))]
+    if len(matches) == 0: return None
+    if len(matches) > 1: error("Ambiguous path while searching for file {} in directories {}.".format(filename, dirs))
+    return matches[0]
+
+def file_in_use(filename):
+    """True if file is in use by another program.
+
+    Will currently work only on Mac OS and Linux."""
+    return filename in run(['lsof'])
+
+def find_c_dependencies(filename, dirs, absolute_paths=False):
+    """Determines header files unto which passed C/C++ source file depends by recursively resolving include directives.
+
+    Only files contained in list of directories dirs are considered.
+    Passing a list of filenames returns a list of corresponding results.
+    Files should be C or C++ files.
+    """
+    if isinstance(filename, str):
+        # find all matching includes
+        pattern = re.compile(r'#include[ \t]*(?:<|")([^>"]+)(?:<|")')  # last compiled expressions are cached by re, so redefinition is not a problem here
+        with open(filename, 'r') as f:
+            deps = pattern.findall(f.read())
+
+        # filter dependencies for given set of directories
+        deps = [d for d in [find_path(d, dirs) for d in deps] if d is not None]
+
+        # recursively determine dependencies
+        deps = flatten( [(d, find_c_dependencies(d, dirs, absolute_paths=absolute_paths)) for d in deps] )
+
+        # remove duplicates
+        deps = list(set(deps))
+
+        return deps
+    else:
+        return [find_c_dependencies(fn, dirs) for fn in filenames]
+
+def run(args, errormsg=None, output='stdout', force=False, infolevel=1):
+    """Executes an external command and returns its output.
+
+    Program arg[0] is looked for relative to current working directory."""
+    dinfo("Running '" + ' '.join(flatten(args)) + "'", infolevel)
+    res = subprocess.run(flatten(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=False)
+    if not force and res.returncode: error("Execution failed.\nCommand: '{}'\nReturn code: {}\nError: {}".format(' '.join(res.args), res.returncode, res.stderr if errormsg is None else errormsg))
+    return switch(output, 'stdout', res.stdout, 'stderr', res.stderr)
+
+
+#  ###########  #
+#  #  Tasks  #  #
+#  ###########  #
+
+class Task:
+    """Base class for tasks.
+
+    Member methods:
+    build        builds the task; must build dependencies, itself if necessary,
+                 and set owntime and done at the end; calls work() to build itself
+    work         builds this target; called by build(); override for specific behavior
+    set_owntime  convenience method that sets owntime
+    launch       starts a subprocess for parallel execution of external programs
+    wait_all     waits until all launched dependent tasks have finished
+
+    Member variables:
+    filename     path to file task is for
+    targetname   if task results in a file, its path; None if no output
+    deps         list of tasks on which this task depends; can be empty
+    deptime      absolute time (in s) of latest change of any dependency
+    owntime      absolute time (in s) when targetname was done, or latest change to filename
+    done         whether this task has finished; false initially, switches once to true
+    infolevel    indentation level for output
+
+    Configuration:
+    builddir     working directory for tasks; system's temporary directory by default
+    projdir      project root directory; this path assumed common to all project files; empty by default
+    uniquify     function creating unique target names; identity by default
+    """
+
+    builddir = tempfile.gettempdir()  # system's temporary files directory
+    projdir = ''  # project root directory
+    def uniquify(arg): pass  # no uniquification by default
+
+    def __init__(self, filename, targetname=None, deps=None, infolevel=1):
+        """Initializes task.
+
+        Sets dependencies if passed in advance, otherwise derived task needs to set them before build()."""
+        self.filename, self.targetname, self.deps, self.infolevel = filename, targetname, deps, infolevel
+        self.deptime, self.owntime = float('inf'), 0  # default is to require building this task
+        self._done, self._extproc = False, None  # not done initially, no external process running
+        if targetname is not None: dinfo("Preparing target {}.".format(self._pfn(self.targetname)), self.infolevel)
+
+    def build(self):
+        """Builds all dependencies and task itself if necessary by calling work()."""
+        assert self.deps is not None
+
+        # build all dependencies, determine latest change
+        if self.deps == []:
+            self.deptime = 0  # no dependencies, so all are fulfilled
+            if self.targetname is not None: info("No dependencies found.", self.infolevel)
+        else:
+            for d in self.deps: d.build()
+            self.wait_all()
+            self.deptime = max([d.owntime for d in self.deps])
+
+        if self.targetname is not None and self.targetname != self.filename:
+            if not os.path.isfile(self.filename): error("Could not find file underlying task ({})".format(self._pfn(self.filename)))
+            self.deptime = max(self.deptime, os.path.getmtime(self.filename))
+
+        # rebuild target if latest change later than target was built
+        self.set_owntime()
+        if self.owntime < self.deptime:
+            self.work()  # can launch(), otherwise needs to set done
+            assert self._done or self._extproc is not None
+        else:
+            self.done = True
+            if self.targetname is not None: info("Nothing needs to be done for target {}.".format(self._pfn(self.targetname)), self.infolevel)
+
+    def work(self):
+        """Default is to do nothing.
+
+        If overridden and default build() is used, must not accept any parameters (without default values).
+        If overriden and does not use launch(), must set done."""
+        self.done = True
+
+    def set_owntime(self):
+        """Determines time when task was last built.
+
+        Refers to target if task has one, otherwise to last change in file that underlies task."""
+        if self.targetname is None:
+            if not os.path.isfile(self.filename): error("Could not find file underlying task ({})".format(self._pfn(self.filename)))
+            self.owntime = os.path.getmtime(self.filename)
+        else:
+            self.owntime = os.path.getmtime(self.targetname) if os.path.isfile(self.targetname) else 0
+
+    def launch(self, args):
+        """Starts a non-blocking external process."""
+        if self._done: error("Can not launch external process for already done task.")
+        if self._extproc is not None: error("Can not launch another external process for this task while first one is still runnning.")
+        self._extproc = subprocess.Popen(flatten(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=False)
+        assert self._done is False and self._extproc is not None
+        dinfo("Launched external process ({})".format(' '.join(flatten(args))), self.infolevel)
+
+    def wait_all(self):
+        """Waits until all asynchronously launched dependent tasks are done."""
+        while not all(d.done for d in self.deps): time.sleep(0.5)
+
+    @property
+    def done(self):
+        """True if this task is done.
+
+        If task is not done yet and an external process is running, checks whether it has finished by now."""
+
+        if self._done: return True  # below, self._done is False
+        if self._extproc is None: return False  # not done yet, but also no process started yet
+
+        # check whether external process has finished
+        self._extproc.poll()
+        if self._extproc.returncode is None: return False  # process is still running
+
+        # process has terminated
+        if self._extproc.returncode: error("Execution failed.\nCommand: '{}'\nError: {}".format(' '.join(self._extproc.args), self._extproc.stderr.read(-1)))
+        self._done, self._extproc = True, None
+        self.set_owntime()
+        info("Target {} done.".format(self._pfn(self.targetname)), self.infolevel)
+
+    @done.setter
+    def done(self, value):
+        """Sets done state.
+
+        State may only go from False to True once."""
+        if value is not True: error("Attempt at setting done state to invalid value '{}'.".format(value))
+        if self._done: error("Attempt to set done state a second time.")
+        if value and self._extproc is not None: error("Attempt to declare task done while external process is running.")
+        self._done = value
+        if value and self.targetname is not None: dinfo("Done ({}, {})".format(self._pfn(self.filename), self._pfn(self.targetname)), self.infolevel)
+
+    def _pfn(self, filename):
+        """Formats filename for messages."""
+        return os.path.relpath(filename, Task.projdir)
+
+class ExecutableTask(Task):
+    """Task representing an executable.
+
+    Builds an executable file from .cpp sources it depends on."""
+
+    def __init__(self, filename, deps, cpp, flags=[], post=[], infolevel=1):
+        """Initializes executable task."""
+        super().__init__(filename, targetname=filename, deps=deps, infolevel=infolevel)
+        self.cpp, self.flags, self.post = cpp, flags, post
+
+    def work(self):
+        """Links object files into executable."""
+        sources = [d.targetname for d in self.deps]
+        args = [self.cpp, self.flags, sources, '-o', self.targetname, self.post]
+        info("Compiling executable {}".format(self._pfn(self.targetname)), self.infolevel)
+        run(args)
+        self.done = True
+
+class LibraryTask(Task):
+    """Task representing a dynamic library.
+
+    Builds object files from .cpp sources files it depends on, then links."""
+
+    def __init__(self, filename, deps, cpp, flags=[], post=[], infolevel=1):
+        """Initializes library task."""
+        super().__init__(filename=filename, targetname=filename, deps=deps, infolevel=infolevel)
+        self.cpp, self.flags, self.post = cpp, flags, post
+
+    def work(self):
+        """Links dependant object files into library."""
+
+        # link library
+        sources = [d.targetname for d in self.deps]
+        args = [self.cpp, self.flags, sources, '-o', self.targetname, self.post]
+        info("Compiling library {}".format(self._pfn(self.targetname)), self.infolevel)
+        run(args)
+
+        # strip library
+        info("Stripping library {}".format(self._pfn(self.targetname)), self.infolevel)
+        strip_cmd = ['strip', self.targetname]
+        if platform.system() == 'Darwin': strip_cmd[1:1] = ['-u', '-r']
+        run(strip_cmd)
+
+        self.done = True
+
+class CppSourceTask(Task):
+    """Task representing C++ source file.
+
+    Compiles into object file if any dependant header has changed."""
+
+    def __init__(self, filename, dirs, cpp, flags=[], targetname=None, infolevel=1):
+        """Initializes C++ source code task.
+
+        dirs specifies directories in which to search for header files."""
+
+        # targetname is same with different extension if not specified
+        if targetname is None: targetname = os.path.join(Task.builddir, os.path.splitext(uniquify(filename))[0] + '.o')
+        dinfo("Creating CppSourceTask ({} -> {})".format(self._pfn(filename), self._pfn(targetname)), infolevel)
+
+        super().__init__(filename=filename, targetname=targetname, infolevel=infolevel)
+        self.dirs, self.cpp, self.flags = dirs, cpp, flags
+
+    def build(self):
+        """Finds dependant header files, builds object file if necessary."""
+
+        # find all header dependencies
+        self.deps = find_c_dependencies(self.filename, self.dirs, absolute_paths=False)
+        self.deps = [CppHeaderTask(d, self.dirs, infolevel=self.infolevel) for d in self.deps]
+        dinfo("Found {} dependencies for source file {} ({})".format(len(self.deps), self._pfn(self.filename), [self._pfn(d.filename) for d in self.deps]), self.infolevel)
+
+        super().build()
+
+    def work(self):
+        args = [self.cpp, self.flags, self.filename, '-c', '-o', self.targetname]
+        info("Compiling source file {} to {}".format(self._pfn(self.filename), self._pfn(self.targetname)), self.infolevel)
+        self.launch(args)
+
+class CppHeaderTask(Task):
+    """Task representing C++ header file.
+
+    Recursively determines last time this or any included header changed."""
+
+    def __init__(self, filename, dirs, infolevel=1):
+        """Initializes C++ header task.
+
+        dirs specifies directories in which to search for header files."""
+
+        super().__init__(filename, targetname=None, infolevel=infolevel)
+        self.dirs = dirs
+
+    def build(self):
+        """Recursively determines dependant header files."""
+
+        # find header files on which this header file depends
+        self.deps = find_c_dependencies(self.filename, self.dirs, absolute_paths=False)
+        self.deps = [CppHeaderTask(filename=d, dirs=self.dirs, infolevel=self.infolevel) for d in self.deps]
+
+        super().build()
+
+    # default work()
