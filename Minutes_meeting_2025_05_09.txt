@@ -1,5 +1,12 @@
+Minutes_meeting_2025-05-09
+*Date: 2025-05-09*
+*Present: Tijn, Jesper*
+*Minute taker: Jesper* 
+*Purpose of meeting: Discuss project goal and approach and short term action points.*
+
+
 AP Jesper: Bayesian model maken; assignment A t/m D
-AP Thijn: Verder met GMM, B t/m D
+AP Tijn: Verder met GMM, B t/m D
 
 
 Presentatie:
