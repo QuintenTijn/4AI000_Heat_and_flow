@@ -1,0 +1,25 @@
+AP Jesper: Bayesian model maken; assignment A t/m D
+AP Thijn: Verder met GMM, B t/m D
+
+
+Presentatie:
+
+    - Problem formulation - Samen
+    - Literature review - Individueel
+	    AP: bulletpoints maken wat er uit de literature in de presentative moet; eventueel al in slides zetten
+    - Timeline - Individueel
+    - Initial option and data exploration
+
+
+
+Maandag 12 mei 13.30-15.30 meeting om presentatie midterm te maken. Mocht je al iets bedenken wat erin moet kan je dit al in gedeelde slides zetten
+
+Problem formulation definition: Which machine learning model has the best performance in terms of speed and accuracy in predicting the reflection and accomodation coefficients of Hydrogen gas particles off of a interface?
+-> don't forget to denote the reasons to why we want to use a machine learning model -> image from slides
+
+
+Samenvatting AP's:
+AP Jesper: Bayesian model maken; assignment A t/m B - deadline Donderdag 15 mei
+AP Thijn: Verder met GMM, A t/m B - deadline Donderdag 15 mei
+AP: Literarture uit readme doornemen en aantekeningen van relevante dingen maken; eventueel al in slides zetten - Deadline maandag 12 mei
+
