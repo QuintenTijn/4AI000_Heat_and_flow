@@ -1,33 +1,27 @@
 Assignment:
 
-We make a gaussian mixture model to compute the output translational_velocity, angular_velocity after reflecting off of the wall.
+We make different machine learning models to predict the output translational_velocity and angular_velocity after the gas particles off of the wall.
+We test the performance of the models on the data we have and report on the results and which model ends up being the best for the task.
 
-Tasks:
-A. The first model will predict the reflection without any interaction between particles
-B. The second model will predict the reflection with a Couette flow present.
-C. The third model will predict the distribution of translational and angular velocities and predict the accommodation coefficients.
-D. Compare GMM and Bayesian model/DNN on ACC predictions.
-
- 
-As inputs we have the v_t and v_omega from he liao_transfer_function
+we will iteratively build each model by having it perform the following model tasks:
+    A. The first iteration of the model will predict the reflection without any interaction between particles
+    B. The second iteration of the model will predict the reflection with a Couette flow present.
+    C. The third iteration of the model will predict the distribution of translational and angular velocities and predict the accommodation coefficients.
+    D. Compare GMM and Bayesian model/DNN on ACC predictions.
 
 
-Questions:
+Done milestones:
+    Milestones for part A:
+        1. Specify correct paths to the data in the code to be able to run the data preprocessing
+        2. Implement simple GMM to perform task 1.
+        3. Train GMM using given training data.
 
-- What is the v_mp (most probable velocity)?
-- How do we evaluate the performance of our model? Especially for part 3. where we have to predict the accommodation coefficients.
-- For task 4 do you already have a Bayesian model to compare our predictions against?
-- For assignment A, do we use the data of all the 3 files alltogether, or do we train 3 seperate models for each file? since the parameters are different for each text file I would assume the latter?
-- Why are we using Gaussian Mixture Modeling to model the reflection behaviour? wouldn't a regression model be better at figuring out the relation (reflection) between input and output?
-    - Maybe we expect different modes of reflection representing different clusters in the GMM?
+Next milestones:
+    Milestones for part B:
+        4. Put 10D data through data preprocessing
+        5. Implement GMM to perform task B.
+        6. Plot the results of task B.
 
-Steps:
-1. Specify correct paths to the data in the code to be able to run the data preprocessing
-2. Implement simple GMM to perform task 1.
-3. Train GMM using given training data.
+    Steps for part C:
 
-Steps for part B:
-
-Steps for part C:
-
-Steps for part D:
+    Steps for part D:
