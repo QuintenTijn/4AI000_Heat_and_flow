@@ -28,7 +28,7 @@ Paper: Modeling rarefied gas-solid surface interactions for Couette flow with di
 Notes:
 Boundary models with limited number of parameters cannot completely describe the reflection of gas molecules at the boundary due to velocity slip and tempearture jumps and other physical complexities.
 -> therefore this paper again uses a GM model to construct a statistical gas-solid interface.The model is trained on the collisional data from molecular dynamics (MD) simulations. -> results are compared with the CLL (Cercignani-Lampis-Lord) scattering kernel.
-It seems that the GM model is a better match with the MD results than the CLL scattering kernel.
+It seems that the GM model is a better match with the MD results than the CLL scattering kernel are with the MD results.
 
 What is the CLL scattering kernel?
 -> The Maxwell and Cercignani-Lampis-Lord (CLL)
@@ -138,3 +138,10 @@ waarom Gaussian: ->
 -simulations are insanely heavy: 28000 particles -> 15h for 1 ns of simulation on 6 processors
 
 -> onze interesse/onderzoek: tot nu toe zijn ze niet verder gegaan dan de gaussian. Waarom zouden we niet ook de performance van Bayesian statistics kunnen evalueren, of een simpel regressie model? (regressie koppelt input/output, en je kan door te trainen ook nog de gas wall thermal interactions meenemen)
+---------------------------------------------------------
+Presentation:
+
+Problem introduction:
+* Reflection at gas-solid interface
+    - Reflective & thermal gas-wall interaction model
+    - macroscopic laws of physics cannot be scaled down to the microscale
