@@ -1,0 +1,140 @@
+Paper: Prediction of thermal conductance and friction coefficients at a solid-gas interface from statistical learning of collisions
+Notes:
+1. to reconstruct the MD (molecular dynamics) first, nonparametric techniques were used to estimate the PDF and generate new collsiion data. To avoid the sparsity of data in high dimensions,
+the reflection process was assumed to be independent for each velocity compnents. -> the uncorrelation hypothesis can be strong and oversimplify the true behaviour
+-> investigate unsupervised learning techniques. (e.g. GMM)
+-> the GM are probabilistic models that use a linear combination of multiple multidimensional Gaussians to estimate the probability density of data.
+Existing models are limited by a finite number of parameters (e.eg. accommodation coefficients), the GM models are not.  They require an EM algorithm to tune the parameters.
+Limitations of parametric models: 1. the requirement of the existence of a limited number of constant accommodationcoefficients and the lack of flexibility in the case of complex collision data
+-> It is suggested that to achieve better accuracy, we need to rely on the whole data range and to not be limited by the number of model parameters
+formula (6) gives a formula on how to derive the scattering kernel -> GM can use superposition and unlimited amount of parameters. Also, the GM algorithms are well developed in literature and commercial software.
+
+Preprocessing part:
+1. symmetrization of the data: add a copy (-c', -c) for each entry (c, c')
+2. transform c_z, c_z' to gauss. distributions. recover the transformation later.
+
+THen there is some explanation on how mixture models work, how they are combined and what the parameters are -> also present this?
+
+
+Then, how is the model evaluated:
+1. acucuracy of fitting with the given data and, more importantly:
+2. The ability to generate new data predicting quantities consistent with the realistic system.
+Thus, the proposed evaluation is: to compute physical-based parameters including accomodation coefficients,  the reflective deviation angle,
+ and boundary conditions coefficients at the interface using the GM model and compare them with the same parameters issued from NP, CL kernels and the realistic MD simulations
+eq. 18 laat zien hoe deze accomodation coefficient berekend wordt in deze paper
+
+----------------------------------------------------------------------------------------------------------------
+Paper: Modeling rarefied gas-solid surface interactions for Couette flow with different wall temperatures using an unsupervised machine learning technique
+Notes:
+Boundary models with limited number of parameters cannot completely describe the reflection of gas molecules at the boundary due to velocity slip and tempearture jumps and other physical complexities.
+-> therefore this paper again uses a GM model to construct a statistical gas-solid interface.The model is trained on the collisional data from molecular dynamics (MD) simulations. -> results are compared with the CLL (Cercignani-Lampis-Lord) scattering kernel.
+It seems that the GM model is a better match with the MD results than the CLL scattering kernel.
+
+What is the CLL scattering kernel?
+-> The Maxwell and Cercignani-Lampis-Lord (CLL)
+ models are controlled by one or several constant parameters
+ known as accommodation coefficients (ACs), which quantify
+ the energy and momentum exchange at the gas-solid interface
+ and must be known apriori.
+-> evaluating these ACs is the major bottleneck in the performance of this/these scattering models. This is due to the superposition of many factors affecting the GSI (gas–solid interactions) at the microscopic level that are not taken into consideration. Also they ignore the interactions between different components of gas molecule velocities.
+-> causes a notable discrepency among reported values for the ACs in experimental and numerical studies.
+-> to solve this problem, different proposals have been made to alter the ACs based on certain characteristics. However, this is very complex to implement due to the high number of tunable parameters and has therefore not been employed much in practice.
+
+A promising approach to achieve a detailed understanding about GSI at the atomic lever is molecular dynamics (MD) simulations. However, these are of course computationally expensive
+
+-> then came the nonparametric GSI models, which used MD simulation data directly to construct the scattering kernel, without additional parameters in between such as ACs.
+The performance of these types of models immediately seemed superior in comparison with the models mentioned before.
+
+-> the most recent type of GSI model discussed in this paper is using the Gaussian Mixture (GM model), a robust unsupervised machine learning technique.
+This model uses the collisional data, without using AC parameters. Therefore, all the important physics are kept included in the training data. This model still ignores gas-gas interactions.
+The state of the art is that, up until then, the absorption of gas molecules on solid surfaces is not negligible, even as other gas-gas interactions.
+Up until then, there was no model that took these into consideration. This paper aims to bridge this gap and study the capability of the GM model in the study of the rarefied
+ gas-solid surface interactions in the case of systems encountered with highly nonequilibrium and flow conditions.
+
+Then there is the experimental setup: maybe add one from one of the papers as an example to the slides: knudsen number, critical pressure, berendsen thermostat, periodic boundary conditions parallel to wall to ensure an inf. long wall
+, temperature exchange can only be due to collisions with other atoms. Finally, the gas-gas and gas-solid interactions are modeled by the Lennart-Jones potential -> based on quantum ad ibinito computations because these are the most reliable to study GSI at the molecular scale
+The MD simulation data was gathered using the LAMMPS molecular dynamics package.
+-> maybe include eq 1 and 2 from the paper, which explain how the CLL model works (most accurate phenomenological gas-surface collision model)
+
+-> eq. 3 displays how the AC is computed according to Spijker et.al. Todo: add this to the presenttaion and state that we cal also evaluate the performance of the GM model using this.
+
+GM model, specs:
++ Generally categorized as parametric model, but due to presence of numerous fitting parameters retains the flexibility of a nonparametric model
+-> therefore promising tool to model high-dimensional data space
+-> paramters are optimized using expectation-maximization
+-> The Gaussians are D-dimensional (D is number of features)
+-> uses default scikit-learn model with default settings; except nr of gaussians (N_G_).
+-> This N_G_ has to be optimized.
+-> Training data: both pre and postcollisional velocities.
+
+GM Model, results:
+- Tangential velocity components follow Gauss. distributions. Normal velocity components follow Rayleigh distribution
+-> thus, the normal velocity has to be preprocessed to convert to Gaussian distribution and the output will be mapped back to Rayleigh (include image 2?)
+- To evaluate the influence of preprocessing, the model was trained with and without and the results where compared.
+    -> in this test scenario, noticable differences where only in the PDF of the normal velocity component (as expected, the non-preprocessed was less accurate)
+        -> increasing N_G_ however, does decrease this difference and then the PDF converges the MD simulation results better.
+    -> also, the energy accomodation coefficient was computed (fig. 6). And from the figure it can again be seen that scheme-2 better and smoother approximates the MD results
+- performance evaluation vs CLL model:
+    -> for 2 different settings, (both walls 300K and bottom wall 300K + top wall 500K) again  the impinging vs outgoing velocity correlations are visualized and the corresponding PDF for reflecting particles is given (fig 7 and fig 8). ALso, velocity ratios between the bottom and top wall (S_w) are introduced
+        -> results: 
+            fig 7, no-flow Ar-Au: both CLL and GM in good agreement with MD
+            fig 8, flow in x-direction, Ar-Au: good agreement, except in x-direction (flow-direction). There the CLL model deviates.
+            Again for fig 9 and 10, the GM model is a perfect match but CLL model deviates.
+            Then for the computed ACs: imposing an external velocity does not significantly impact the obtained ACs on the walls.
+                -> GMM model ACs always in perfect agreement, CLL model was lsightly off for alpha_E
+
+- It was proven that the data does not have to be split into the test/train set:
+    -> see figure 15. This is because for the data it is ensured that the system always reaches equilibrium conditions first
+
+--------------------------------------------------------
+Paper: Development of a scattering model for diatomic gas–solid surface interactions by an unsupervised machine learning approach
+Notes: This paper does relatively the same as one paper above, but then for the H2 component. Therefore ill not add an indepth summary here.
+Again, the conclusion is that the GM model is in better agreement with the original MD data than the CLL scattering model.
+
+*The new thing in displaying results is the Kullback Leibler divergence. It is a measure of how much a model probability distribution is different from a true probability distribution P.
+
+--------------------------------------------------------
+paper: Computation of accommodation coefficients and the use of velocity correlation profiles in molecular dynamics simulations
+notes: This paper derives an (improved) method to compute the accomodation coefficient are presented (based on the velocity correlations)
+
+* macroscopic laws of physics cannot be scaled down to the microscale.
+-> Navier-stokes: large scale, Boltzmann: smaller, MD simulations: so small that particle behavior becomes essential
+
+Reflective surface: v_in is reverted v_out
+Thermal model: outgoing velocity has no correlation with incoming velocity whatsoever but only depends on wall temperature.
+-> (also in slides): maxwell suggested a combination of above 2 models, where an accomodation coefficient defines how much of the characteristic from above 2 models a particle draws.
+    -> Maxwell-Yamamoto and CLL build onto this idea of using accomodation coefficients
+All above discussed models treat the velocity components independently
+
+Knudsen number: the ratio between the mean-free path of an atom lambda and the characteristic dimension L of the system (L is the distance between the walls)
+-> is a measure of the rarefaction (opposite of compression, reduction of an items density) of the gas
+-> knudsen number of order 10^-1 justifies the uses of MD simulation due to obsolete continuum description
+simulations are insanely heavy: 28000 particles -> 15h for 1 ns of simulation on 6 processors
+
+a particle is 'colliding' with the wall whenever a virtual border is crossed. This border is sufficiently far away from the wall such that the interaction pot. is still 0 (trunctuation point of Lennart-Jones potential).
+Furthermore, the upper limit of this distance is determined by the mean free path of the gas particles
+To prevent gas-gas interactions to influence the result of the collision, the virtual border is placed at exactly the truncation point of the potential
+
+* Computing the accomodation coefficients
+equation 2 gives the general method.The values for K_T need to be computed from the thermal wall distribution. The expected values for these are given in table 1 and can be directly implemented in eq 2 to compute the AC.
+
+The problem in this paper is that it is quite hard to compare the accomodation values with experimental values because of the sparsity, and thus they demand for new experiments.
+
+
+------------------------------------------------------
+Paper: The Influence of Gas–Wall and Gas–Gas Interactions on the Accommodation Coefficients for Rarefied Gases: A Molecular Dynamics Study
+This paper investigates the influence of the gas-surface interacton strenght on the accomodation coefficient for Argon and Helium Gases.
+
+As stated in another paper that I read, it is shown that the interaction potential based on ab-initio calculations is the most reliable one for computing accomodation coefficients.
+The values for the AC for two parallel walls are closer to the experimental values with these gas-gas interactions included.
+
+todo: find out which other interaction methods were tried
+
+--------------------------------------------------------
+Presentatie:
+introduction: macroscopic laws of physics cannot be scaled down to the microscale
+waarom Gaussian: -> 
+-je leert geen tussenparameters (accomodation coefficients), maar direct de distributie waardoor je de onderliggende natuurkunde intact laat
+-simulations are insanely heavy: 28000 particles -> 15h for 1 ns of simulation on 6 processors
+
+-> onze interesse/onderzoek: tot nu toe zijn ze niet verder gegaan dan de gaussian. Waarom zouden we niet ook de performance van Bayesian statistics kunnen evalueren, of een simpel regressie model? (regressie koppelt input/output, en je kan door te trainen ook nog de gas wall thermal interactions meenemen)
