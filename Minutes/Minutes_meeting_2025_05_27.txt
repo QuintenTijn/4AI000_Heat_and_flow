@@ -14,9 +14,7 @@
     - Bayesian ML model
     - CNN ML model
 
-- Which data do we need to use for step B, C and D?
-
 
 ## This week
 - Merge branches GM_model and Bayesian_model
-- Implement step B, C and D
+- Implement step B, C and D for GMM and Bayesian model
