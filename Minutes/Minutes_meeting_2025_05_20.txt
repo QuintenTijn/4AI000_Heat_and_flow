@@ -1,0 +1,16 @@
+Meeting 20-05-2025
+
+1. I did not have progress meeting with tijn, so I was unable to give an update on that
+    (ik had geen tijd meer om de git te bereiken)
+
+2. I initialized a bayesian model and compared it with the gaussian model from the paper. However, I want the code from the paper because I do not get the same gaussian as in the paper
+(it uses 600 components, but mine doesnt converge then)
+    ->  I asked sylvia to send me the code of this paper
+
+Once this has been done, we can start comparing the models for couette flows with high velocity and actually see some results
+
+AP Jesper: Studentennummers van Tijn + Jesper doorsturen naar Silvia
+
+
+
+Plan t/m donderdag:
