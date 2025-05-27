@@ -1,0 +1,22 @@
+## Questions
+
+- Should we split our data in train and test split?
+
+- What plots do we want in the end to compare all the models?
+    - Scatter heatmap
+    - PDF line plot
+    - Accomodation coefficient prediction - ground truth vs nr_components line plot
+
+- Which models/data to plot?
+    - MD data
+    - CLL mathematical model
+    - GMM ML model
+    - Bayesian ML model
+    - CNN ML model
+
+- Which data do we need to use for step B, C and D?
+
+
+## This week
+- Merge branches GM_model and Bayesian_model
+- Implement step B, C and D
