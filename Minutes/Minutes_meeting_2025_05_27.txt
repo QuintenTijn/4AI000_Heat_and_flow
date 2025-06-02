@@ -1,0 +1,40 @@
+
+## Questions
+
+- Should we split our data in train and test split?
+
+- What plots do we want in the end to compare all the models?
+    - Scatter heatmap
+    - PDF line plot
+    - translational accomodation coefficient prediction - ground truth vs nr_components line plot
+    - Angular velocity input vs angular velocity output
+    - Calculate the angular momentum accomodation coefficients
+    - Model performance: training time, nr_components
+
+- Models and data to plot against eachother
+    - MD data
+    - CLL mathematical model
+    - GMM ML model
+    - Bayesian ML model
+    - CNN ML model
+
+
+## Meeting minutes
+
+- We need more data for training/test split.
+- If we use the 10D data it is interesting to see which degrees of freedom (translational or rotational) impact the results the most.
+- It is clear how we can continue with the project, Silvia is still happy ;)
+- There's a fun discussion about projects.
+
+
+## Tasks for this week  (2025-05-26)
+
+- Merge branches GM_model and Bayesian_model
+- Implement step B, C and D for GMM and Bayesian model
+- @QuintenTijn plot the histograms of the 20<v<40 and 40<v data.
+
+
+## oral examination
+
+- What could be good follow up research?
+- What would you have done if you had had more time?
