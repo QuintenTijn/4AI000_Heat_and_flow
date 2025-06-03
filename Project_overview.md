@@ -4,7 +4,7 @@
 What machine learning model has the best performance in terms of speed and accuracy in predicting the reflection and accomodation coefficients of Hydrogen gas particles off of a interface?
 
 
-## Method
+## Approach
 We make different machine learning models to predict the output translational_velocity and angular_velocity after the gas particles off of the wall.
 We test the performance of the models on the data we have and report on the results and which model ends up being the best for the task.
 
@@ -32,4 +32,9 @@ After each model has been built it will be compared against the other ML models 
 - Calculate the angular momentum accomodation coefficients
 - Model performance: training time, nr_components
 
+
+## Timeline
+![project timeline](project_timeline.png)
+
+The final report has to be handed in somewhere during Q4 exams.
 
