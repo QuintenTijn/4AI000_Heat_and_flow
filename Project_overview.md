@@ -3,70 +3,38 @@
 **Problem statemtent:**
 What machine learning model has the best performance in terms of speed and accuracy in predicting the reflection and accomodation coefficients of Hydrogen gas particles off of a interface?
 
+
+## Approach
 We make different machine learning models to predict the output translational_velocity and angular_velocity after the gas particles off of the wall.
 We test the performance of the models on the data we have and report on the results and which model ends up being the best for the task.
 
 we will iteratively build each model by having it perform the following model tasks:
-    A. The first iteration of the model will predict the reflection without any interaction between particles
-    B. The second iteration of the model will predict the reflection with a Couette flow present.
-    C. The third iteration of the model will predict the distribution of translational and angular velocities and predict the accommodation coefficients.
-    D. Compare GMM and Bayesian model/DNN on ACC predictions.
+    A. The first iteration of the model will predict the reflection of the translational velocities without any interaction between particles.
+    B. The second iteration of the model will predict the reflection with the particle rotational velocities taken into account as well.
+    C. The third iteration will predict the accommodation coefficients.
+
+After each model has been built it will be compared against the other ML models and mathematical models.
 
 
+**Models and data to plot against eachother**
+
+- MD data
+- CLL mathematical model
+- GMM ML model
+- Bayesian ML model
+- CNN ML model
+
+**Plots for the final report**
+- Scatter heatmap
+- PDF line plot
+- translational accomodation coefficient prediction - ground truth vs nr_components line plot
+- Angular velocity input vs angular velocity output
+- Calculate the angular momentum accomodation coefficients
+- Model performance: training time, nr_components
 
 
+## Timeline
+![project timeline](project_timeline.png)
 
-## Gaussian Mixture Model (Tijn):
-#### Done milestones:
-Milestones for part A:
-1. Specify correct paths to the data in the code to be able to run the data preprocessing
-2. Implement simple GMM to perform task 1.
-3. Train GMM using given training data.
-4. Plot the results of task 1.
+The final report has to be handed in somewhere during Q4 exams.
 
-#### Next milestones:
-Milestones for part B:
-
-5. Put 10D data through data preprocessing
-6. Implement GMM to perform task B.
-7. Plot the results of task B.
-
-Steps for part C:
-
-Steps for part D:
-
-## Bayesian model (Jesper):
-#### Done milestones:
-#### Next milestones:
-**Milestones for part A:**
-1. Specify correct paths to the data in the code to be able to run the data preprocessing
-2. Implement simple Bayesian model to perform task 1.
-3. Train Bayesian model using given training data.
-4. Plot the results of task 1.
-    
-**Milestones for part B:**
-5. Put 10D data through data preprocessing
-6. Implement Bayesian model to perform task B.
-7. Plot the results of task B.
-
-**Milestones for part C:**
-
-**Milestones for part D:**
-
-## Convolutional Neural Network
-#### Done milestones:
-#### Next milestones:
-**Milestones for part A:**
-1. Specify correct paths to the data in the code to be able to run the data preprocessing
-2. Implement simple CNN to perform task 1.
-3. Train CNN using given training data.
-4. Plot the results of task 1.
-
-**Milestones for part B:**
-5. Put 10D data through data preprocessing
-6. Implement CNN to perform task B.
-7. Plot the results of task B.
-
-**Milestones for part C:**
-
-**Milestones for part D:**
