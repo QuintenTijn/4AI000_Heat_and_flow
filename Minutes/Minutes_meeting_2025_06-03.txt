@@ -1,0 +1,6 @@
+## Meeting with Jesper
+
+- Ik had het gevoel dat ik overbodig werk aan het doen was 
+door GMM opnieuw te fitten op alle datasets.
+
+- What dataset(s) will we use for the final comparison of the models?
