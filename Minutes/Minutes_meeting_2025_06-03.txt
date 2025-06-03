@@ -1,5 +1,6 @@
 ## Meeting with Jesper
 
+- Onduidelijk welke dataset ik nou moest gebruiken bij task C.
 - Ik had het gevoel dat ik overbodig werk aan het doen was 
 door GMM opnieuw te fitten op alle datasets.
 
