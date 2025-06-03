@@ -12,7 +12,8 @@
 
 ## Tasks for this week
 
+- Work in the file Bayesian_testing_notebook.ipynb from now on.
 - Try and fit the CNN this coming week.
 - Start report writing this week.
-
+- @QuintenTijn add scatter plot to Bayesian_testing_notebook.ipynb
 
