@@ -13,6 +13,8 @@
 - There is a function in the code from Silvia somewhere to de-normalize the data.
 - We'll have a meeting on thursday morning online.
 - Sylvia will look if the CLL model is in the files somewhere
+
+
 ## Tasks for this week
 
 - Work in the file Bayesian_testing_notebook.ipynb from now on.
