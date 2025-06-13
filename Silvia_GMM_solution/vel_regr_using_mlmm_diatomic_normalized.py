@@ -54,7 +54,7 @@ y_omega = []
 x_MD = []
 y_MD = []
 
-path_to_data = r'C:\Users\20180384\OneDrive - TU Eindhoven\Desktop\PhD\Assignment_ML\New\Assginment_ML\Assginment_ML\Solutions\H2'
+path_to_data = r'C:\Users\jespe\Documents\physical modelling\github_new\4AI000_Heat_and_flow\Materials_for_ML_assigment_2025\Data_H2_assignment_Bayesian_C_3'
 #path_save_data='./'+path_to_data
 #path_to_data = 'Shahin/test_data/'
 
